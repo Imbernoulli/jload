@@ -10,8 +10,6 @@ pip install jload
 
 ## Usage
 
-### Loading Data
-
 ```python
 from jload import jload, jsave
 
