@@ -1,6 +1,128 @@
-# Jload
+# jload
+
+A simple utility to load a list of dictionaries from JSON or JSONL files, with automatic format detection.
+
+## Installation
+
+```bash
+pip install jload
+```
+
+## Usage
 
 ```python
-form jload import jload
-jload(PATH)
+from jload import jload
+
+# Load data from a JSON file
+data = jload('path/to/file.json')
+
+# Load data from a JSONL file
+data = jload('path/to/file.jsonl')
+
+# File extension doesn't matter - format is auto-detected
+data = jload('path/to/any_file')
 ```
+
+## Features
+
+- **Format Auto-detection**: Automatically detects if a file contains JSON or JSONL (JSON Lines) format
+- **Flexible Parsing**: 
+  - Handles JSON arrays of dictionaries
+  - Handles single JSON objects (returns as a list with one dictionary)
+  - Handles JSONL with one JSON object per line
+- **Error Handling**: Provides meaningful error messages for invalid files or formats
+- **Lightweight**: No dependencies beyond Python's standard library
+
+## Function Details
+
+```python
+def jload(file_path: str) -> list[dict]:
+    """
+    Loads a list of dictionaries from a file, attempting to auto-detect
+    if it's a single JSON array/object or JSONL (JSON Lines).
+    The function prioritizes content analysis over file extension.
+
+    Args:
+        file_path (str): The path to the data file.
+
+    Returns:
+        list[dict]: A list of dictionaries loaded from the file.
+                    - If the file content is a JSON array of objects, it's returned as is.
+                    - If the file content is a single JSON object, it's returned as a list
+                      containing that single object.
+                    - If the file content appears to be JSONL, each line that is a valid
+                      JSON object is included in the returned list.
+                    - Returns an empty list if the file is empty.
+
+    Raises:
+        FileNotFoundError: If the specified file_path does not exist.
+        ValueError: If the file content cannot be interpreted as either
+                    a JSON array/object or JSONL format.
+    """
+```
+
+## Examples
+
+### Example 1: Loading a JSON array of objects
+
+**data.json**:
+```json
+[
+  {"name": "Alice", "age": 30},
+  {"name": "Bob", "age": 25}
+]
+```
+
+**Python code**:
+```python
+from jload import jload
+
+data = jload('data.json')
+print(data)
+# Output: [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]
+```
+
+### Example 2: Loading a single JSON object
+
+**data.json**:
+```json
+{"name": "Alice", "age": 30}
+```
+
+**Python code**:
+```python
+from jload import jload
+
+data = jload('data.json')
+print(data)
+# Output: [{'name': 'Alice', 'age': 30}]
+```
+
+### Example 3: Loading a JSONL file
+
+**data.jsonl**:
+```
+{"name": "Alice", "age": 30}
+{"name": "Bob", "age": 25}
+```
+
+**Python code**:
+```python
+from jload import jload
+
+data = jload('data.jsonl')
+print(data)
+# Output: [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]
+```
+
+## Requirements
+
+- Python 3.7+
+
+## License
+
+MIT License
+
+## Contributing
+
+Issues and pull requests are welcome at [https://github.com/Imbernoulli/jload/issues](https://github.com/Imbernoulli/jload/issues)
