@@ -74,23 +74,27 @@ def jload(file_path: str) -> list[dict]:
 ### jsave
 
 ```python
-def jsave(data: list[dict], file_path: str, format: str = 'auto', indent: int = 2) -> None:
+def jsave(data, file_path: str, format: str = 'auto', indent: int = 2) -> None:
     """
-    Saves a list of dictionaries to a file in either JSON or JSONL format.
+    Saves data to a file in either JSON or JSONL format.
 
     Args:
-        data (list[dict]): The list of dictionaries to save.
+        data: The data to save.
+            - For 'json' format: Can be any JSON-serializable data (dict, list, str, int, etc.)
+            - For 'jsonl' format: Must be a list of dictionaries
         file_path (str): The path where the file will be saved.
         format (str, optional): The format to save in. Options:
             - 'auto': Determine format based on file extension (.jsonl/.ndjson for JSONL, anything else for JSON)
-            - 'json': Save as a JSON array
+            - 'json': Save as a JSON document
             - 'jsonl': Save as JSONL (one JSON object per line)
             Defaults to 'auto'.
         indent (int, optional): Number of spaces for indentation in JSON format.
             Only applies to 'json' format, ignored for 'jsonl'. Defaults to 2.
 
     Raises:
-        ValueError: If data is not a list of dictionaries or if an invalid format is specified.
+        ValueError: If format is 'jsonl' but data is not a list of dictionaries,
+                    or if an invalid format is specified.
+        TypeError: If data is not JSON-serializable.
         IOError: If there's an error writing to the file.
     """
 ```
