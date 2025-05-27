@@ -335,6 +335,13 @@ def jsave(data, file_path: str, format: str = 'auto', indent: int = 2, append: b
                 # Save as JSONL (one object per line, no indentation)
                 for item in data:
                     f.write(json.dumps(item) + '\n')
+    except ValueError as e:
+        # 处理循环引用等序列化错误
+        if "Circular reference detected" in str(e):
+            raise TypeError(f"Data is not JSON-serializable: {e}")
+        else:
+            # 其他ValueError可能是格式问题，保持原样
+            raise
     except TypeError as e:
         raise TypeError(f"Data is not JSON-serializable: {e}")
     except Exception as e:
