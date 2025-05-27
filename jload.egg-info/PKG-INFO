@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: jload
-Version: 0.5.2
+Version: 0.6.0
 Summary: A simple utility to load JSON/JSONL files as lists of dictionaries, and save various data types to JSON/JSONL.
 Author-email: Bohan Lyu <lyubh22@gmail.com>
 License-Expression: MIT
