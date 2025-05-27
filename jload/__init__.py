@@ -1,5 +1,8 @@
 import json
 import os
+import fcntl
+import time
+from typing import Optional, Union, Dict, Any
 
 def jload(file_path: str) -> list[dict]:
     """
@@ -132,15 +135,147 @@ def jload(file_path: str) -> list[dict]:
     except Exception as e: # Catch any other exception from the re-parse
         raise ValueError(f"An unexpected error occurred during final validation of '{file_path}': {e}")
 
+def jsave_append(entry: Dict[str, Any], file_path: str, format: str = 'auto', indent: int = 2, 
+                max_retries: int = 5, retry_delay: float = 0.1) -> None:
+    """
+    Appends a single dictionary entry to an existing JSON or JSONL file.
+    
+    Args:
+        entry (Dict[str, Any]): The dictionary entry to append.
+        file_path (str): The path to the file where the entry will be appended.
+        format (str, optional): The format of the file. Options:
+            - 'auto': Determine format based on file extension (.jsonl/.ndjson for JSONL, 
+                      anything else for JSON)
+            - 'json': Treat as a JSON array file
+            - 'jsonl': Treat as a JSONL file (one JSON object per line)
+            Defaults to 'auto'.
+        indent (int, optional): Number of spaces for indentation in JSON format.
+            Only applies to 'json' format, ignored for 'jsonl'. Defaults to 2.
+        max_retries (int, optional): Maximum number of retries if file is locked. Defaults to 5.
+        retry_delay (float, optional): Delay in seconds between retries. Defaults to 0.1.
+            
+    Raises:
+        ValueError: If entry is not a dictionary, if format is invalid, or if the existing 
+                   JSON file does not contain a JSON array.
+        FileNotFoundError: If the file doesn't exist and needs to be created.
+        IOError: If there's an error writing to the file or if max_retries is exceeded.
+    """
+    # Validate entry
+    if not isinstance(entry, dict):
+        raise ValueError("Entry must be a dictionary")
+    
+    # Determine format if 'auto'
+    if format == 'auto':
+        lower_path = file_path.lower()
+        if lower_path.endswith('.jsonl') or lower_path.endswith('.ndjson'):
+            format = 'jsonl'
+        else:
+            format = 'json'
+    
+    # Validate format
+    if format not in ['json', 'jsonl']:
+        raise ValueError(f"Invalid format: {format}. Must be 'json', 'jsonl', or 'auto'")
+    
+    # Handle JSONL format (simple append)
+    if format == 'jsonl':
+        retry_count = 0
+        while retry_count < max_retries:
+            try:
+                # Create directory if it doesn't exist
+                os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
+                
+                # Open file in append mode
+                with open(file_path, 'a+', encoding='utf-8') as f:
+                    # Acquire an exclusive lock
+                    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    try:
+                        # Write the new entry
+                        f.write(json.dumps(entry) + '\n')
+                    finally:
+                        # Release the lock
+                        fcntl.flock(f, fcntl.LOCK_UN)
+                return
+            except IOError as e:
+                if "Resource temporarily unavailable" in str(e):
+                    # File is locked by another process, retry
+                    retry_count += 1
+                    if retry_count >= max_retries:
+                        raise IOError(f"Failed to acquire file lock after {max_retries} attempts")
+                    time.sleep(retry_delay)
+                else:
+                    # Other IO error
+                    raise IOError(f"Error appending to file '{file_path}': {e}")
+    
+    # Handle JSON format (read, modify, write)
+    else:  # format == 'json'
+        retry_count = 0
+        while retry_count < max_retries:
+            try:
+                # Check if file exists
+                file_exists = os.path.exists(file_path)
+                
+                # Create directory if it doesn't exist
+                os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
+                
+                if not file_exists:
+                    # If file doesn't exist, create it with a single entry in an array
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        try:
+                            json.dump([entry], f, indent=indent)
+                        finally:
+                            fcntl.flock(f, fcntl.LOCK_UN)
+                    return
+                
+                # File exists, read current content
+                with open(file_path, 'r+', encoding='utf-8') as f:
+                    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    try:
+                        # Read existing content
+                        try:
+                            current_content = f.read().strip()
+                            if not current_content:
+                                data = []  # Empty file
+                            else:
+                                data = json.loads(current_content)
+                        except json.JSONDecodeError:
+                            raise ValueError(f"Existing file '{file_path}' does not contain valid JSON")
+                        
+                        # Ensure data is a list
+                        if not isinstance(data, list):
+                            raise ValueError(f"Existing file '{file_path}' must contain a JSON array for append operation")
+                        
+                        # Append the new entry
+                        data.append(entry)
+                        
+                        # Write back to file
+                        f.seek(0)
+                        f.truncate()
+                        json.dump(data, f, indent=indent)
+                    finally:
+                        fcntl.flock(f, fcntl.LOCK_UN)
+                return
+            except IOError as e:
+                if "Resource temporarily unavailable" in str(e):
+                    # File is locked by another process, retry
+                    retry_count += 1
+                    if retry_count >= max_retries:
+                        raise IOError(f"Failed to acquire file lock after {max_retries} attempts")
+                    time.sleep(retry_delay)
+                else:
+                    # Other IO error
+                    raise IOError(f"Error appending to file '{file_path}': {e}")
 
-def jsave(data, file_path: str, format: str = 'auto', indent: int = 2) -> None:
+
+def jsave(data, file_path: str, format: str = 'auto', indent: int = 2, append: bool = False) -> None:
     """
     Saves data to a file in either JSON or JSONL format.
 
     Args:
         data: The data to save.
             - For 'json' format: Can be any JSON-serializable data (dict, list, str, int, etc.)
-            - For 'jsonl' format: Must be a list of dictionaries
+            - For 'jsonl' format: Must be a list of dictionaries if append=False
+                                 Must be a dictionary if append=True
         file_path (str): The path where the file will be saved.
         format (str, optional): The format to save in. Options:
             - 'auto': Determine format based on file extension (.jsonl/.ndjson for JSONL, anything else for JSON)
@@ -149,13 +284,24 @@ def jsave(data, file_path: str, format: str = 'auto', indent: int = 2) -> None:
             Defaults to 'auto'.
         indent (int, optional): Number of spaces for indentation in JSON format.
             Only applies to 'json' format, ignored for 'jsonl'. Defaults to 2.
+        append (bool, optional): If True, appends data to the existing file instead of overwriting.
+            - For 'json' format: data must be a dictionary, which will be appended to the existing JSON array
+            - For 'jsonl' format: data must be a dictionary, which will be appended as a new line
+            Defaults to False.
 
     Raises:
-        ValueError: If format is 'jsonl' but data is not a list of dictionaries,
+        ValueError: If data is not in the correct format for the specified file format,
                     or if an invalid format is specified.
         TypeError: If data is not JSON-serializable.
         IOError: If there's an error writing to the file.
     """
+    # If append mode is requested, delegate to jsave_append for a single dictionary
+    if append:
+        if not isinstance(data, dict):
+            raise ValueError("When append=True, data must be a dictionary")
+        return jsave_append(data, file_path, format, indent)
+    
+    # Regular save operation (overwrite mode)
     # Determine format if 'auto'
     if format == 'auto':
         # Check file extension
@@ -177,6 +323,9 @@ def jsave(data, file_path: str, format: str = 'auto', indent: int = 2) -> None:
         if not all(isinstance(item, dict) for item in data):
             raise ValueError("For JSONL format, all items in data must be dictionaries")
     
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
+    
     try:
         with open(file_path, 'w', encoding='utf-8') as f:
             if format == 'json':
@@ -191,5 +340,6 @@ def jsave(data, file_path: str, format: str = 'auto', indent: int = 2) -> None:
     except Exception as e:
         raise IOError(f"Error writing to file '{file_path}': {e}")
 
-# To make `from jload import jload, jsave` work directly
-__all__ = ['jload', 'jsave']
+
+# To make imports work
+__all__ = ['jload', 'jsave', 'jsave_append']
