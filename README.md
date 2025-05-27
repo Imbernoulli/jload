@@ -1,6 +1,6 @@
 # jload
 
-A simple utility to load a list of dictionaries from JSON or JSONL files, with automatic format detection.
+A simple utility to load and save lists of dictionaries from/to JSON and JSONL files, with automatic format detection.
 
 ## Installation
 
@@ -9,6 +9,8 @@ pip install jload
 ```
 
 ## Usage
+
+### Loading Data
 
 ```python
 from jload import jload
@@ -23,9 +25,33 @@ data = jload('path/to/file.jsonl')
 data = jload('path/to/any_file')
 ```
 
+### Saving Data
+
+```python
+from jload import jsave
+
+# List of dictionaries to save
+data = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]
+
+# Save as JSON (default)
+jsave(data, 'output.json')
+
+# Save as JSONL
+jsave(data, 'output.jsonl', format='jsonl')
+
+# Auto-detect format based on file extension
+jsave(data, 'output.jsonl')  # Will be saved as JSONL
+jsave(data, 'output.json')   # Will be saved as JSON
+
+# Customize JSON indentation
+jsave(data, 'output.json', indent=4)  # Use 4 spaces for indentation
+```
+
 ## Features
 
-- **Format Auto-detection**: Automatically detects if a file contains JSON or JSONL (JSON Lines) format
+- **Format Auto-detection**: 
+  - When loading: Automatically detects if a file contains JSON or JSONL (JSON Lines) format
+  - When saving: Determines format based on file extension (.jsonl/.ndjson for JSONL, anything else for JSON)
 - **Flexible Parsing**: 
   - Handles JSON arrays of dictionaries
   - Handles single JSON objects (returns as a list with one dictionary)
@@ -34,6 +60,8 @@ data = jload('path/to/any_file')
 - **Lightweight**: No dependencies beyond Python's standard library
 
 ## Function Details
+
+### jload
 
 ```python
 def jload(file_path: str) -> list[dict]:
@@ -58,6 +86,30 @@ def jload(file_path: str) -> list[dict]:
         FileNotFoundError: If the specified file_path does not exist.
         ValueError: If the file content cannot be interpreted as either
                     a JSON array/object or JSONL format.
+    """
+```
+
+### jsave
+
+```python
+def jsave(data: list[dict], file_path: str, format: str = 'auto', indent: int = 2) -> None:
+    """
+    Saves a list of dictionaries to a file in either JSON or JSONL format.
+
+    Args:
+        data (list[dict]): The list of dictionaries to save.
+        file_path (str): The path where the file will be saved.
+        format (str, optional): The format to save in. Options:
+            - 'auto': Determine format based on file extension (.jsonl/.ndjson for JSONL, anything else for JSON)
+            - 'json': Save as a JSON array
+            - 'jsonl': Save as JSONL (one JSON object per line)
+            Defaults to 'auto'.
+        indent (int, optional): Number of spaces for indentation in JSON format.
+            Only applies to 'json' format, ignored for 'jsonl'. Defaults to 2.
+
+    Raises:
+        ValueError: If data is not a list of dictionaries or if an invalid format is specified.
+        IOError: If there's an error writing to the file.
     """
 ```
 
@@ -113,6 +165,44 @@ from jload import jload
 data = jload('data.jsonl')
 print(data)
 # Output: [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]
+```
+
+### Example 4: Saving data as JSON
+
+```python
+from jload import jsave
+
+data = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]
+jsave(data, 'output.json')
+```
+
+**output.json**:
+```json
+[
+  {
+    "name": "Alice",
+    "age": 30
+  },
+  {
+    "name": "Bob",
+    "age": 25
+  }
+]
+```
+
+### Example 5: Saving data as JSONL
+
+```python
+from jload import jsave
+
+data = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]
+jsave(data, 'output.jsonl')
+```
+
+**output.jsonl**:
+```
+{"name":"Alice","age":30}
+{"name":"Bob","age":25}
 ```
 
 ## Requirements

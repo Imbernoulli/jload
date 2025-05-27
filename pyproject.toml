@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jload"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
     {name = "Bohan Lyu", email = "lyubh22@gmail.com"},
 ]
-description = "A simple utility to load a list of dictionaries from JSON or JSONL files, with auto-detection of format."
+description = "A simple utility to load and save a list of dictionaries from/to JSON or JSONL files, with auto-detection of format."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.7"

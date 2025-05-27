@@ -1,4 +1,3 @@
-# jload/__init__.py
 import json
 import os
 
@@ -134,5 +133,57 @@ def jload(file_path: str) -> list[dict]:
         raise ValueError(f"An unexpected error occurred during final validation of '{file_path}': {e}")
 
 
-# To make `from jload import jload` work directly
-__all__ = ['jload']
+def jsave(data: list[dict], file_path: str, format: str = 'auto', indent: int = 2) -> None:
+    """
+    Saves a list of dictionaries to a file in either JSON or JSONL format.
+
+    Args:
+        data (list[dict]): The list of dictionaries to save.
+        file_path (str): The path where the file will be saved.
+        format (str, optional): The format to save in. Options:
+            - 'auto': Determine format based on file extension (.jsonl/.ndjson for JSONL, anything else for JSON)
+            - 'json': Save as a JSON array
+            - 'jsonl': Save as JSONL (one JSON object per line)
+            Defaults to 'auto'.
+        indent (int, optional): Number of spaces for indentation in JSON format.
+            Only applies to 'json' format, ignored for 'jsonl'. Defaults to 2.
+
+    Raises:
+        ValueError: If data is not a list of dictionaries or if an invalid format is specified.
+        IOError: If there's an error writing to the file.
+    """
+    # Validate input data
+    if not isinstance(data, list):
+        raise ValueError("Data must be a list")
+    
+    if not all(isinstance(item, dict) for item in data):
+        raise ValueError("All items in data must be dictionaries")
+    
+    # Determine format if 'auto'
+    if format == 'auto':
+        # Check file extension
+        lower_path = file_path.lower()
+        if lower_path.endswith('.jsonl') or lower_path.endswith('.ndjson'):
+            format = 'jsonl'
+        else:
+            format = 'json'
+    
+    # Validate format
+    if format not in ['json', 'jsonl']:
+        raise ValueError(f"Invalid format: {format}. Must be 'json', 'jsonl', or 'auto'")
+    
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            if format == 'json':
+                # Save as a JSON array with specified indentation
+                json.dump(data, f, indent=indent)
+            else:  # format == 'jsonl'
+                # Save as JSONL (one object per line, no indentation)
+                for item in data:
+                    f.write(json.dumps(item) + '\n')
+    except Exception as e:
+        raise IOError(f"Error writing to file '{file_path}': {e}")
+
+
+# To make `from jload import jload, jsave` work directly
+__all__ = ['jload', 'jsave']
