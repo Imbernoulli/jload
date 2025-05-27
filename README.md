@@ -13,38 +13,20 @@ pip install jload
 ### Loading Data
 
 ```python
-from jload import jload
+from jload import jload, jsave
 
-# Load data from a JSON file
-data = jload('path/to/file.json')
-
-# Load data from a JSONL file
-data = jload('path/to/file.jsonl')
-
-# File extension doesn't matter - format is auto-detected
+# File extension doesn't matter - format is auto-detected between json and jsonl
 data = jload('path/to/any_file')
-```
-
-### Saving Data
-
-```python
-from jload import jsave
 
 # List of dictionaries to save
 data = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]
-
-# Save as JSON (default)
-jsave(data, 'output.json')
 
 # Save as JSONL
 jsave(data, 'output.jsonl', format='jsonl')
 
 # Auto-detect format based on file extension
 jsave(data, 'output.jsonl')  # Will be saved as JSONL
-jsave(data, 'output.json')   # Will be saved as JSON
-
-# Customize JSON indentation
-jsave(data, 'output.json', indent=4)  # Use 4 spaces for indentation
+jsave(data, 'output.json')   # Will be saved as JSON, with auto indent
 ```
 
 ## Features
