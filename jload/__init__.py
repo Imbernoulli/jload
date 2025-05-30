@@ -104,7 +104,7 @@ def jsave_append(entry: Dict[str, Any], file_path: str, format: str = 'auto', in
                 os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
                 
                 # Open file in append mode
-                with open(file_path, 'a+', encoding='utf-8') as f:
+                with open(file_path, 'a+') as f:
                     # Try to acquire lock
                     if try_lock_file(f, exclusive=True):
                         try:
@@ -144,7 +144,7 @@ def jsave_append(entry: Dict[str, Any], file_path: str, format: str = 'auto', in
                 
                 if not file_exists:
                     # If file doesn't exist, create it with a single entry in an array
-                    with open(file_path, 'w', encoding='utf-8') as f:
+                    with open(file_path, 'w') as f:
                         if try_lock_file(f, exclusive=True):
                             try:
                                 json.dump([entry], f, indent=indent)
@@ -160,7 +160,7 @@ def jsave_append(entry: Dict[str, Any], file_path: str, format: str = 'auto', in
                             continue
                 
                 # File exists, read current content
-                with open(file_path, 'r+', encoding='utf-8') as f:
+                with open(file_path, 'r+') as f:
                     if try_lock_file(f, exclusive=True):
                         try:
                             # Read existing content
@@ -230,11 +230,8 @@ def jload(file_path: str) -> list[dict]:
                     a JSON array/object or JSONL format leading to a list of dictionaries,
                     after trying both parsing methods.
     """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Error: File not found at '{file_path}'")
-
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r') as f:
             # Read the whole content first. This is necessary because a file
             # could be a single large JSON object that spans multiple lines,
             # or it could be JSONL.
@@ -395,7 +392,7 @@ def jsave(data, file_path: str, format: str = 'auto', indent: int = 2, append: b
     os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
     
     try:
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, 'w') as f:
             if format == 'json':
                 # Save as a JSON document with specified indentation
                 json.dump(data, f, indent=indent)
@@ -415,6 +412,67 @@ def jsave(data, file_path: str, format: str = 'auto', indent: int = 2, append: b
     except Exception as e:
         raise IOError(f"Error writing to file '{file_path}': {e}")
 
+def jmerge(data1: list[dict], data2: list[dict], key1: str, key2: str, in_mode: bool = False) -> list[dict]:
+    """
+    Merges two lists of dictionaries by updating dictionaries in data1 with matching dictionaries in data2.
+    
+    Args:
+        data1 (list[dict]): The primary list of dictionaries to be updated.
+        data2 (list[dict]): The secondary list of dictionaries containing data to merge.
+        key1 (str): The key in dictionaries of data1 to match against.
+        key2 (str): The key in dictionaries of data2 to match against.
+        in_mode (bool, optional): If True, matches when d1[key1] is contained in d2[key2] 
+                                 (or vice versa). If False, matches only when d1[key1] == d2[key2].
+                                 Defaults to False.
+        
+    Returns:
+        list[dict]: The updated data1 list with merged data from data2.
+        
+    Raises:
+        ValueError: If data1 or data2 is not a list of dictionaries, or if key1 or key2 is empty.
+    """
+    # Validate inputs
+    if not isinstance(data1, list) or not all(isinstance(item, dict) for item in data1):
+        raise ValueError("data1 must be a list of dictionaries")
+    
+    if not isinstance(data2, list) or not all(isinstance(item, dict) for item in data2):
+        raise ValueError("data2 must be a list of dictionaries")
+    
+    if not key1 or not isinstance(key1, str):
+        raise ValueError("key1 must be a non-empty string")
+    
+    if not key2 or not isinstance(key2, str):
+        raise ValueError("key2 must be a non-empty string")
+    
+    if in_mode:
+        # When using in_mode, we can't use a simple lookup dictionary
+        # Need to check each pair directly
+        for d1 in data1:
+            if key1 not in d1:
+                continue
+            
+            for d2 in data2:
+                if key2 not in d2:
+                    continue
+                    
+                # Check if either value is contained in the other
+                if (isinstance(d1[key1], str) and isinstance(d2[key2], str) and 
+                    (d1[key1] in d2[key2] or d2[key2] in d1[key1])):
+                    d1.update(d2)
+                    break  # Move to next d1 after finding a match
+    else:
+        # Create a lookup dictionary for data2 for faster access when using exact matching
+        lookup = {}
+        for d2 in data2:
+            if key2 in d2:
+                lookup[d2[key2]] = d2
+        
+        # Merge dictionaries where keys match exactly
+        for d1 in data1:
+            if key1 in d1 and d1[key1] in lookup:
+                d1.update(lookup[d1[key1]])
+    
+    return data1
 
 # To make imports work
-__all__ = ['jload', 'jsave', 'jsave_append']
+__all__ = ['jload', 'jsave', 'jsave_append', 'jmerge']
